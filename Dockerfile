@@ -5,11 +5,16 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y git
 
 COPY requirements.txt .
-RUN pip install torch==2.1.2+cpu torchvision==0.16.2+cpu -f https://download.pytorch.org/whl/cpu/torch_stable.html && \
-    pip install --no-cache-dir -r requirements.txt
+
+RUN pip install --no-cache-dir numpy
 
 
-# Copy the model folder into image
+RUN pip install torch==2.1.2+cpu torchvision==0.16.2+cpu -f https://download.pytorch.org/whl/cpu/torch_stable.html
+
+
+RUN pip install --no-cache-dir -r requirements.txt
+
+
 COPY fine_tuned_course_model/ fine_tuned_course_model/
 
 COPY . .
