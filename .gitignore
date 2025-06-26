@@ -1,0 +1,6 @@
+.env
+__pycache__/
+*.pyc
+models/
+fine_tuned_course_model/
+RECommendationDSs.csv
