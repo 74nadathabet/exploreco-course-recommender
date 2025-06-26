@@ -15,7 +15,7 @@ RUN pip install torch==2.1.2+cpu torchvision==0.16.2+cpu -f https://download.pyt
 RUN pip install --no-cache-dir -r requirements.txt
 
 
-COPY fine_tuned_course_model/ fine_tuned_course_model/
+COPY model/ model/
 
 COPY . .
 

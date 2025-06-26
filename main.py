@@ -44,7 +44,7 @@ class FullInput(BaseModel):
 
 # ------------------ Dataset & Models -------------------
 df = pd.read_csv("RECommendationDSs.csv")
-embedding_model = SentenceTransformer("fine_tuned_course_model")
+embedding_model = SentenceTransformer("model")
 vectorizer = TfidfVectorizer()
 tfidf_matrix = vectorizer.fit_transform(df["Improved Description"])
 df["embedding"] = df["Improved Description"].apply(lambda x: embedding_model.encode(x, convert_to_numpy=True))
