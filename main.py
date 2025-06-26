@@ -150,7 +150,7 @@ Your task is to suggest exactly 2 highly relevant courses per topic that follow 
 - Must address the user's misunderstandings
 - Must be technical and practical
 
-⚠️ Important: All recommended courses must be related to **cybersecurity**, even if the topic or job role is from a development field (e.g., Flutter, DevOps, etc). For example, suggest mobile app security for Flutter, not Flutter development itself.
+ Important: All recommended courses must be related to **cybersecurity**, even if the topic or job role is from a development field (e.g., Flutter, DevOps, etc). For example, suggest mobile app security for Flutter, not Flutter development itself.
 
 Return ONLY valid JSON in the format:
 ```json
@@ -222,7 +222,7 @@ async def full_analysis(input_data: FullInput):
                 "questions": [q.dict() for q in topic_data.questions]
             }
 
-            # 🟢 تعديل هنا: بنبعت كل التوبيكس مش بس البيجينر
+            
             weak_topics.append(topic_name)
 
             try:
