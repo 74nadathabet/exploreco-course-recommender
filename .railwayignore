@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.ipynb_checkpoints/
+*.ipynb
+*.csv
+*.xlsx
+*.bin
+*.pt
+*.zip
+*.tar.gz
+.cache/
+.vscode/
+node_modules/
+.git/
