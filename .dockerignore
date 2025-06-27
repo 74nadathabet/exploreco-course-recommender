@@ -15,9 +15,6 @@ __pycache__/
 *.pyd
 *.egg-info/
 
-# Docker specific files
-.dockerignore
-Dockerfile  # عادةً لا تحتاج لإضافة Dockerfile نفسه إذا كان في الجذر
 
 # IDE/Editor specific files
 .vscode/
