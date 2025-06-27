@@ -124,7 +124,20 @@ def deduplicate_courses(courses):
         if key not in seen:
             seen[key] = course
     return list(seen.values())
+from sklearn.metrics.pairwise import cosine_similarity
 
+def is_semantically_relevant(description, topic, threshold=0.4):
+    topic_embedding = embedding_model.encode(topic, convert_to_numpy=True)
+    desc_embedding = embedding_model.encode(description, convert_to_numpy=True)
+    similarity = cosine_similarity([topic_embedding], [desc_embedding])[0][0]
+    return similarity >= threshold
+
+def filter_relevant_courses(topic, questions, courses):
+    relevant = []
+    for course in courses:
+        if is_semantically_relevant(course["description"], topic):
+            relevant.append(course)
+    return relevant
 # ------------------ GPT Prompt -------------------
 def extract_json_from_response(text):
     try:
@@ -134,35 +147,51 @@ def extract_json_from_response(text):
 
 async def call_gpt_with_topic_data(topic_blocks, user_job_role, session):
     prompt = f"""
-You are an AI assistant specialized in recommending cybersecurity courses based on user performance.
+You are an AI assistant specialized in technical education and cybersecurity upskilling. Your task is to analyze a user's performance across multiple technical topics and recommend targeted online courses to help them improve based on their actual mistakes.
 
-User Job Role: {user_job_role}
-
-The user completed a technical assessment. For each topic below, we provide:
+## Context:
+The user works in a technical role as a {user_job_role}. They have answered questions across various technical topics such as Python, Linux, or SQL. For each topic, we provide:
 - The topic name
-- The user's estimated level: Beginner / Intermediate / Advanced
-- A list of incorrectly answered questions, along with the user's wrong answer
+- The user's skill level (Beginner, Intermediate, or Advanced)
+- A list of incorrectly answered questions with the user's selected (wrong) answers
 
-Your task is to suggest exactly 2 highly relevant courses per topic that follow these guidelines:
-- Must be directly related to the topic
-- Should help the user improve cybersecurity skills relevant to their job role as a {user_job_role}
-- Must be appropriate for the user's level
-- Must address the user's misunderstandings
-- Must be technical and practical
+Your objective is to:
+1. Analyze the user's mistakes.
+2. Recommend courses that directly help them improve in that specific topic.
+3. Clearly show how your recommendations address their misunderstandings.
 
- Important: All recommended courses must be related to **cybersecurity**, even if the topic or job role is from a development field (e.g., Flutter, DevOps, etc). For example, suggest mobile app security for Flutter, not Flutter development itself.
+## Instructions:
 
-Return ONLY valid JSON in the format:
-```json
+### 1. For each topic:
+- Recommend exactly two technical and practical online courses.
+- These courses must directly relate to the topic. Do not include general software development, cybersecurity, or unrelated courses.
+  - For example, if the topic is Python, recommend Python-specific courses only.
+  - If the topic is Linux, recommend Linux command-line or Linux systems courses.
+
+### 2. Ensure appropriateness by skill level:
+- Recommend courses that match the user’s current level or are one step more advanced, depending on the score.
+- Do not recommend advanced material for a beginner.
+
+### 3. Correct the misunderstanding:
+- At least one of the two courses per topic must explicitly help the user correct one of their wrong answers.
+- In your course description, identify the mistake and explain how the course will help the user understand the correct concept.
+
+### 4. Format your response as valid JSON only, using the structure below:
+ Important Constraints:
+- Do NOT recommend courses unrelated to the topic. Do NOT recommend JavaScript courses for Python, or biology/medical courses for technical topics.
+- Always ensure the course title and content are clearly within the topic scope (e.g., “Linux Command Line” for Linux).
+
 [
   {{
-    "title": "<Course Title>",
-    "description": "<How this course helps the user improve in this topic>"
-  }}
+    "title": "Course Title",
+    "description": "Detailed explanation of how this course helps the user improve in the topic. Clearly mention how it addresses a specific mistake, if applicable."
+  }},
+  ...
 ]
 
+Return only valid JSON. Do not add explanations, extra formatting, or notes outside the array.
 
-Here are the user’s weak topics:
+Now generate your output using the following user topic data:
 {topic_blocks}
 """
 
@@ -184,16 +213,38 @@ Here are the user’s weak topics:
         return extract_json_from_response(result["choices"][0]["message"]["content"])
 
 # ------------------ Hybrid Recommender -------------------
-def hybrid_recommend_by_description(description, alpha=0.5, beta=0.3, gamma=0.2):
+def hybrid_recommend_by_description(description, alpha=0.4, beta=0.4, gamma=0.2):
     embed = embedding_model.encode(description, convert_to_numpy=True)
     tfidf_vec = vectorizer.transform([description])
     cos_sim = cosine_similarity([embed], embeddings_matrix)[0]
     tfidf_sim = cosine_similarity(tfidf_vec, tfidf_matrix)[0]
-    keywords = df["Improved Description"].apply(lambda d: sum(1 for w in description.lower().split() if w in d.lower()) / len(description.split())).values
-    final_score = alpha*cos_sim + beta*tfidf_sim + gamma*keywords
+    keywords = df["Improved Description"].apply(
+        lambda d: sum(1 for w in description.lower().split() if w in d.lower()) / len(description.split())
+    ).values
+    final_score = alpha * cos_sim + beta * tfidf_sim + gamma * keywords
     df["Final_Score"] = final_score
     top = df.sort_values("Final_Score", ascending=False).drop_duplicates("Course Title").head(2)
     return top[["Course Title", "URL"]].to_dict(orient="records")
+
+def filter_relevant_courses(topic, questions, courses):
+    topic_keywords = set(topic.lower().split())
+    question_keywords = set()
+    for q in questions:
+        question_keywords |= set(re.findall(r'\w+', q.question.lower()))
+    all_keywords = topic_keywords | question_keywords
+
+    filtered = []
+    for course in courses:
+        desc = course["description"].lower()
+
+
+        if not is_semantically_relevant(desc, topic):
+            continue
+
+        match_count = sum(1 for word in all_keywords if word in desc)
+        if match_count >= 2:  
+            filtered.append(course)
+    return filtered
 
 # ------------------ Main Endpoint -------------------
 @app.post("/full-analysis/")
@@ -229,11 +280,14 @@ async def full_analysis(input_data: FullInput):
                 gpt_courses = await call_gpt_with_topic_data(
                     topic_blocks, input_data.user_job_role, session
                 )
-                if not gpt_courses:
+                filtered_courses = filter_relevant_courses(
+                     topic_name, topic_data.questions, gpt_courses
+                )
+                if not filtered_courses:
                     continue
 
                 hybrid_courses = []
-                for course in gpt_courses:
+                for course in filtered_courses:
                     hybrid_courses += hybrid_recommend_by_description(course["description"])
 
                 unique_top_courses = deduplicate_courses(hybrid_courses)[:2]
