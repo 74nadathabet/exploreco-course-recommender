@@ -1,0 +1,32 @@
+# Git files
+.git
+.gitignore
+
+# Python virtual environment
+venv/
+.venv/
+env/
+ENV/
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+
+# Docker specific files
+.dockerignore
+Dockerfile  # عادةً لا تحتاج لإضافة Dockerfile نفسه إذا كان في الجذر
+
+# IDE/Editor specific files
+.vscode/
+.idea/
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# أي ملفات أو مجلدات أخرى كبيرة لا تحتاجها في الصورة
+# على سبيل المثال، إذا كان لديك مجلد بيانات خام كبير جداً
+# large_dataset_raw/
